@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     #app
-    'poker_app',
+    'poker_api',
 
     #rest_framework
     'rest_framework',

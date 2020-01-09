@@ -15,22 +15,10 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from rest_framework import routers
 from django.urls import path, include
-from poker_app.views import *
-
-router = routers.DefaultRouter()
-router.register(r'cards', CardViewSet)
-router.register(r'hands', HandViewSet)
-router.register(r'packs', PackViewSet)
-router.register(r'cardinpack', CardInPackViewSet)
-router.register(r'boards', BoardViewSet)
-router.register(r'users', UserViewSet)
-router.register(r'pokergame', PokerGameViewSet)
-router.register(r'useringame', UserInGameViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
-    url(r'^api/', include(router.urls)),
+    url(r'^api/', include('poker_api.urls')),
 ]
