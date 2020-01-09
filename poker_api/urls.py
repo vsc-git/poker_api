@@ -14,33 +14,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.conf.urls import url
-from django.urls import include
-from rest_framework import routers
-
 from poker_api.views import *
 
-router = routers.DefaultRouter()
-router.register(r'cards', CardViewSet)
-router.register(r'hands', HandViewSet)
-router.register(r'packs', PackViewSet)
-router.register(r'cardinpack', CardInPackViewSet)
-router.register(r'boards', BoardViewSet)
-router.register(r'users', UserViewSet)
-router.register(r'pokergame', PokerGameViewSet)
-router.register(r'useringame', UserInGameViewSet)
-
 urlpatterns = [
-    url('',  include(router.urls)),
-    # path('article/<id_article>', views.view_article),
-    # path('article/<int:id_article>$', views.view_article, name='afficher_article'),
+    url(r'test', TestView.as_view(), name='test_list_view'),
+    url(r'user/(?P<user_id>\d+)', UserView.as_view(), name='game_view'),
+    url(r'(?P<game_id>\d+)/(?P<user_id>\d*)', UserInGameView.as_view(), name='user_in_game_view'),
+    url(r'(?P<game_id>\d+)', GameView.as_view(), name='game_view'),
+    url(r'user', UserListView.as_view(), name='user_list_view'),
+    url(r'', GameListView.as_view(), name='game_list_view'),
 ]
-# def view_article(request, id_article):
-#     """
-#     Vue qui affiche un article selon son identifiant (ou ID, ici un numéro)
-#     Son ID est le second paramètre de la fonction (pour rappel, le premier
-#     paramètre est TOUJOURS la requête de l'utilisateur)
-#     """
-#     return HttpResponse(
-#         "Vous avez demandé l'article n° {0} !".format(id_article)
-#     )
-# return redirect('afficher_article', id_article=42)
