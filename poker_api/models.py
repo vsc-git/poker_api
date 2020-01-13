@@ -1,7 +1,20 @@
+import random
 from enum import IntEnum
 
 from django.core.validators import MinValueValidator
 from django.db import models
+
+
+class PokerUserActionType:
+    CHECK = 'CHECK'
+    CALL = 'CALL'
+    RAISE = 'RAISE'
+    FOLD = 'FOLD'
+    ALL_IN = 'ALL_IN'
+
+    @staticmethod
+    def values() -> []:
+        return [PokerUserActionType.CALL, PokerUserActionType.RAISE, PokerUserActionType.FOLD]
 
 
 class PokerHandType(IntEnum):
@@ -99,9 +112,13 @@ class Hand(models.Model):
 class Pack(models.Model):
     card_list = models.ManyToManyField(Card, through='CardInPack')
 
-    # def pick_card(self)->Card:
-    #     card = random.choice(self.cardinpack_set.filter(is_draw=False))
-    #     card.
+    def pick_card(self)->Card:
+        card_in_pack = random.choice(self.cardinpack_set.filter(is_draw=False))
+        if not card_in_pack:
+            raise Exception("No more card")
+        card_in_pack.is_draw = False
+        card_in_pack.save()
+        return card_in_pack.card
 
     @classmethod
     def create(cls):
@@ -143,7 +160,6 @@ class User(models.Model):
 
 
 class PokerGame(models.Model):
-    PROCESSING = -1
     STOPPED = 0
     PRE_FLOP = 2
     FLOP = 3
@@ -151,7 +167,6 @@ class PokerGame(models.Model):
     RIVER = 5
     FINISH = 6
     POKER_GAME_STATE = [
-        (PROCESSING, 'PROCESSING'),
         (STOPPED, 'STOPPED'),
         (PRE_FLOP, 'PRE_FLOP'),
         (FLOP, 'FLOP'),
@@ -165,6 +180,7 @@ class PokerGame(models.Model):
     pot = models.FloatField(default=0)
     blind = models.FloatField(default=0)
     state = models.IntegerField(choices=POKER_GAME_STATE, default=STOPPED)
+    processing = models.BooleanField(default=False)
     game_round = models.IntegerField(validators=[MinValueValidator(0)], default=0)
 
     def add_user(self, user: User) -> 'UserInGame':
@@ -175,7 +191,7 @@ class PokerGame(models.Model):
 
     @classmethod
     def create(cls, id):
-        obj = cls(id=id, pack=Pack.create(), board=Board.create())
+        obj = cls(id=id, pack=Pack.create(), board=Board.create(), blind=10)
         obj.save()
         print(obj.user_list.count())
         return obj
@@ -195,5 +211,36 @@ class UserInGame(models.Model):
         obj = cls(user=user, game=game, hand=Hand.create())
         obj.save()
         return obj
+
+
+class ScoreType:
+    FOLD = 0
+    HIGH_CARD = 1
+    PAIR = 2
+    TWO_PAIRS = 3
+    THREE_OF_A_KIND = 4
+    STRAIGHT = 5
+    FLUSH = 6
+    FULL_HOUSE = 7
+    FOUR_OF_A_KIND = 8
+    STRAIGHT_FLUSH = 9
+    ROYAL_FLUSH = 10
+    POKER_SCORE = [
+        (FOLD, 'FOLD'),
+        (HIGH_CARD, 'HIGH_CARD'),
+        (PAIR, 'PAIR'),
+        (TWO_PAIRS, 'TWO_PAIRS'),
+        (THREE_OF_A_KIND, 'THREE_OF_A_KIND'),
+        (STRAIGHT, 'STRAIGHT'),
+        (FLUSH, 'FLUSH'),
+        (FULL_HOUSE, 'FULL_HOUSE'),
+        (FOUR_OF_A_KIND, 'FOUR_OF_A_KIND'),
+        (STRAIGHT_FLUSH, 'STRAIGHT_FLUSH'),
+        (ROYAL_FLUSH, 'ROYAL_FLUSH')
+    ]
+
+    # value = models.IntegerField(choices=POKER_SCORE)
+    # trick_card = models.ManyToManyField(Card, blank=True)
+    # other_card = models.ManyToManyField(Card, blank=True)
 
 # TODO keep score and history

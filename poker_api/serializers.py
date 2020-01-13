@@ -67,7 +67,7 @@ class PokerGamePublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PokerGame
-        fields = ('id','useringame_set', 'board', 'pot', 'blind', 'state', 'game_round')
+        fields = ('id','useringame_set', 'board', 'pot', 'blind', 'state', 'processing', 'game_round')
 
     def get_state(self, obj):
         return list(filter(lambda dict : dict[0]==obj.state, PokerGame.POKER_GAME_STATE))[0][1]
