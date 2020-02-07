@@ -156,6 +156,7 @@ class User(models.Model):
     name = models.TextField(max_length=100, unique=True)
     money = models.FloatField()
     online = models.BooleanField(default=True)
+    bot = models.BooleanField(default=False)
 
     @classmethod
     def create(cls, id):

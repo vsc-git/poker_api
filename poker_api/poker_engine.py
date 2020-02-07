@@ -92,6 +92,8 @@ class PokerEngine:
         next_player = PokerEngine.__user_can_action(game)
         if next_player:
             PokerEngine.__set_next_player(game, next_player.id)
+            if next_player.user.bot:
+                PokerEngine.__call_bot_action(game, next_player)
         else:
             PokerEngine.__pass_next_step(game)
 
@@ -145,11 +147,6 @@ class PokerEngine:
             if user_in_game.in_game and user_in_game.user.money > 0:
                 return user_in_game
         raise Exception("No first user found")
-
-    # @staticmethod
-    # def __find_next_player_pre_flop(game: PokerGame) -> UserInGame:
-    #     # TODO cas du dealer.http://www.poker-texas-holdem.info/
-    #     return PokerEngine.__find_next_player(game)
 
     @staticmethod
     def __pass_next_step(game: PokerGame):
@@ -307,3 +304,7 @@ class PokerEngine:
                 user_in_game.is_turn = True
                 user_in_game.save()
                 break
+
+    @staticmethod
+    def __call_bot_action(game: PokerGame, bot: UserInGame):
+        BasicBotEngine.call_bot_action(game, bot)

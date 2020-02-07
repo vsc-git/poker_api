@@ -19,6 +19,7 @@ from poker_api.views import *
 urlpatterns = [
     url(r'test', TestView.as_view()),
     url(r'user/(?P<user_id>\d+)/off', UserOffView.as_view()),
+    url(r'user/(?P<user_id>\d+)/bot', UserBotView.as_view()),
     url(r'user/(?P<user_id>\d+)', UserView.as_view()),
     url(r'(?P<game_id>\d+)/start_game', GameStartView.as_view()),
     url(r'(?P<game_id>\d+)/restart_game', GameRestartView.as_view()),
