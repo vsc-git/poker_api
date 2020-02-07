@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 
+from .bot_engine import BotEngine
 from .models import *
 from .utils import *
 
@@ -40,7 +41,6 @@ class PokerEngine:
             poker_game.processing = False
             poker_game.save()
 
-
     @staticmethod
     def start_game(game_id: int) -> Response:
         poker_game: PokerGame = get_object_or_404(PokerGame.objects.filter(id=game_id))
@@ -59,12 +59,13 @@ class PokerEngine:
             poker_game.processing = False
             poker_game.save()
 
-
     @staticmethod
     def __pass_next_action(game: PokerGame):
         next_player = PokerEngine.__user_can_action(game)
         if next_player:
             PokerEngine.__set_next_player(game, next_player.id)
+            if next_player.user.bot:
+                PokerEngine.__call_bot_action(game, next_player)
         else:
             PokerEngine.__pass_next_step(game)
 
@@ -80,7 +81,7 @@ class PokerEngine:
             return PokerEngine.__find_next_player(game)
         elif game.state == PokerGame.PRE_FLOP:
             # in preflop big deal player can raise even if he already has the same bet of the pot
-            return PokerEngine.__find_next_player_pre_flop(game)
+            return PokerEngine.__find_next_player(game)
 
     @staticmethod
     def __find_next_player(game: PokerGame) -> UserInGame:
@@ -114,11 +115,6 @@ class PokerEngine:
             if user_in_game.in_game and user_in_game.user.money > 0:
                 return user_in_game
         raise Exception("No first user found")
-
-    @staticmethod
-    def __find_next_player_pre_flop(game: PokerGame) -> UserInGame:
-        # TODO cas du dealer.http://www.poker-texas-holdem.info/
-        return PokerEngine.__find_next_player(game)
 
     @staticmethod
     def __pass_next_step(game: PokerGame):
@@ -176,13 +172,13 @@ class PokerEngine:
     def __finish(game: PokerGame):
         PokerEngine.__set_next_player(game, None)
         game.state = PokerGame.FINISH
-        #TODO define winner
-        #TODO divise money
+        # TODO define winner
+        # TODO divise money
         game.save()
 
     @staticmethod
     def __draw_pre_flop(game: PokerGame):
-        #TODO start with dealer+1
+        # TODO start with dealer+1
         for user_in_game in game.useringame_set.filter(in_game=True):
             user_in_game.hand.card_list.add(game.pack.pick_card())
             user_in_game.hand.save()
@@ -192,7 +188,7 @@ class PokerEngine:
 
     @staticmethod
     def __draw_flop(game: PokerGame):
-        for i in range(0,2):
+        for i in range(0, 2):
             game.board.card_list.add(game.pack.pick_card())
             game.board.save()
 
@@ -210,9 +206,9 @@ class PokerEngine:
     def __set_next_player(game: PokerGame, next_user_in_game_id: int):
         for user_in_game in game.useringame_set.values():
             if next_user_in_game_id and user_in_game.id == next_user_in_game_id:
-                user_in_game.is_turn = True
+                user_in_game['is_turn'] = True
             else:
-                user_in_game.is_turn = False
+                user_in_game['is_turn'] = False
             user_in_game.save()
 
     @staticmethod
@@ -234,7 +230,7 @@ class PokerEngine:
             raise Exception("No enough player")
         if not dealer:
             dealer = 0
-        #set new dealer
+        # set new dealer
         for i in range(0, len(user_list) - 1):
             user_in_game = user_list[(i + dealer) % len(user_list)]
             if user_in_game.in_game:
@@ -242,7 +238,7 @@ class PokerEngine:
                 user_in_game.save()
                 dealer = (i + dealer)
                 break
-        #set small blind
+        # set small blind
         for i in range(1, len(user_list)):
             user_in_game = user_list[(i + dealer) % len(user_list)]
             if user_in_game.in_game > 0:
@@ -251,12 +247,16 @@ class PokerEngine:
                 user_in_game.user.save()
                 user_in_game.save()
                 break
-        #set big blind
-        for i in range(2, len(user_list)+1):
+        # set big blind
+        for i in range(2, len(user_list) + 1):
             user_in_game = user_list[(i + dealer) % len(user_list)]
             if user_in_game.in_game:
-                user_in_game.bet = min(game.blind*2, user_in_game.user.money)
+                user_in_game.bet = min(game.blind * 2, user_in_game.user.money)
                 user_in_game.user.money -= user_in_game.bet
                 user_in_game.user.save()
                 user_in_game.save()
                 break
+
+    @staticmethod
+    def __call_bot_action(game: PokerGame, bot: UserInGame):
+        BotEngine.call_bot_action(game, bot)

@@ -3,23 +3,23 @@ from django.shortcuts import get_object_or_404
 from rest_framework import views
 
 from .poker_engine import PokerEngine
-from .utils import *
 from .serializers import *
+from .utils import *
 
 
 class GameListView(views.APIView):
-    def get(self, request)->Response:
+    def get(self, request) -> Response:
         serializer = PokerGameLightSerializer(PokerGame.objects.all(), many=True)
         return Response(serializer.data)
 
 
 class GameView(views.APIView):
-    def get(self, request, game_id)->Response:
+    def get(self, request, game_id) -> Response:
         poker_game = get_object_or_404(PokerGame.objects.filter(id=int(game_id)))
         serializer = PokerGamePublicSerializer(poker_game)
         return Response(serializer.data)
 
-    def put(self, request, game_id)->Response:
+    def put(self, request, game_id) -> Response:
         query = PokerGame.objects.filter(id=int(game_id))
         if not query:
             print(f'Poker game {game_id} not found. create a new one')
@@ -29,7 +29,7 @@ class GameView(views.APIView):
         serializer = PokerGamePublicSerializer(poker_game)
         return Response(serializer.data)
 
-    def delete(self, request, game_id)->Response:
+    def delete(self, request, game_id) -> Response:
         if not game_id:
             raise Http404()
         poker_game = get_object_or_404(PokerGame.objects.filter(id=int(game_id)))
@@ -38,13 +38,13 @@ class GameView(views.APIView):
 
 
 class UserListView(views.APIView):
-    def get(self, request)->Response:
+    def get(self, request) -> Response:
         serializer = UserSerializer(User.objects.all(), many=True)
         return Response(serializer.data)
 
 
 class UserOffView(views.APIView):
-    def post(self, request, user_id)->Response:
+    def post(self, request, user_id) -> Response:
         user: User = get_object_or_404(User.objects.filter(id=int(user_id)))
         user.online = not user.online
         user.save()
@@ -52,13 +52,22 @@ class UserOffView(views.APIView):
         return Response(serializer.data)
 
 
+class UserBotView(views.APIView):
+    def post(self, request, user_id) -> Response:
+        user: User = get_object_or_404(User.objects.filter(id=int(user_id)))
+        user.bot = not user.bot
+        user.save()
+        serializer = UserInGamePublicSerializer(user.useringame_set, many=True)
+        return Response(serializer.data)
+
+
 class UserView(views.APIView):
-    def get(self, request, user_id)->Response:
+    def get(self, request, user_id) -> Response:
         user = get_object_or_404(User.objects.filter(id=int(user_id)))
         serializer = UserInGamePublicSerializer(user.useringame_set, many=True)
         return Response(serializer.data)
 
-    def put(self, request, user_id)->Response:
+    def put(self, request, user_id) -> Response:
         query = User.objects.filter(id=int(user_id))
         if not query:
             print(f'User {user_id} not found. create a new one')
@@ -68,7 +77,7 @@ class UserView(views.APIView):
         serializer = UserSerializer(user)
         return Response(serializer.data)
 
-    def delete(self, request, user_id)->Response:
+    def delete(self, request, user_id) -> Response:
         if not user_id:
             raise Http404()
         user = get_object_or_404(User.objects.filter(id=int(user_id)))
@@ -78,14 +87,14 @@ class UserView(views.APIView):
 
 class UserInGameView(views.APIView):
 
-    def get(self, request, game_id, user_id)->Response:
+    def get(self, request, game_id, user_id) -> Response:
         if not game_id:
             raise Http404()
         poker_game: PokerGame = get_object_or_404(PokerGame.objects.filter(id=int(game_id)))
         user_in_game = get_object_or_404(poker_game.useringame_set.filter(user__id=user_id))
         return Response(UserInGamePrivateSerializer(user_in_game).data)
 
-    def put(self, request, game_id, user_id)->Response:
+    def put(self, request, game_id, user_id) -> Response:
         if not game_id:
             raise Http404()
         poker_game: PokerGame = get_object_or_404(PokerGame.objects.filter(id=int(game_id)))
@@ -98,7 +107,7 @@ class UserInGameView(views.APIView):
             user_in_game = user_query.first()
         return Response(UserInGamePrivateSerializer(user_in_game).data)
 
-    def delete(self, request, game_id, user_id)->Response:
+    def delete(self, request, game_id, user_id) -> Response:
         if not game_id or not user_id:
             raise Http404()
         poker_game: PokerGame = get_object_or_404(PokerGame.objects.filter(id=int(game_id)))
@@ -109,7 +118,7 @@ class UserInGameView(views.APIView):
 
 class UserActionView(views.APIView):
 
-    def post(self, request, game_id, user_id)->Response:
+    def post(self, request, game_id, user_id) -> Response:
         if not game_id or not user_id:
             raise Http404()
 
@@ -131,7 +140,7 @@ class UserActionView(views.APIView):
 
 
 class GameStartView(views.APIView):
-    def put(self, request, game_id)->Response:
+    def put(self, request, game_id) -> Response:
         if not game_id:
             raise Http404()
         return PokerEngine.start_game(game_id)
@@ -139,7 +148,7 @@ class GameStartView(views.APIView):
 
 class TestView(views.APIView):
 
-    def post(self, request)->Response:
+    def post(self, request) -> Response:
         print(request.data)
         print(request.data['action'])
         if request.data['action'] == PokerUserActionType.CHECK:
