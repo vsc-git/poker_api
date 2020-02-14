@@ -113,12 +113,19 @@ class Pack(models.Model):
     card_list = models.ManyToManyField(Card, through='CardInPack')
 
     def pick_card(self)->Card:
-        card_in_pack = random.choice(self.cardinpack_set.filter(is_draw=False))
-        if not card_in_pack:
+        card_list = self.cardinpack_set.filter(is_draw=False)
+        if not len(card_list):
             raise Exception("No more card")
-        card_in_pack.is_draw = False
+        card_in_pack = random.choice(card_list)
+        card_in_pack.is_draw = True
         card_in_pack.save()
         return card_in_pack.card
+
+    def reset_pack(self):
+        for card in self.cardinpack_set.only():
+            card.is_draw = False
+            card.save()
+        self.save()
 
     @classmethod
     def create(cls):
@@ -205,6 +212,7 @@ class UserInGame(models.Model):
     in_game = models.BooleanField(default=False)
     is_dealer = models.BooleanField(default=False)
     is_turn = models.BooleanField(default=False)
+    has_speak = models.BooleanField(default=False)
 
     @classmethod
     def create(cls, user: User, game: PokerGame):

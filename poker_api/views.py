@@ -3,8 +3,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import views
 
 from .poker_engine import PokerEngine
-from .utils import *
 from .serializers import *
+from .utils import *
 
 
 class GameListView(views.APIView):
@@ -123,6 +123,9 @@ class UserActionView(views.APIView):
         except KeyError:
             bet = 0
 
+        if not bet:
+            bet = 0
+
         if action not in PokerUserActionType.values():
             return send_detail_response(message=f"Invalid parameter 'action'. Values : {PokerUserActionType.values()}", status=400)
         if action == PokerUserActionType.RAISE and bet <= 0:
@@ -135,6 +138,13 @@ class GameStartView(views.APIView):
         if not game_id:
             raise Http404()
         return PokerEngine.start_game(game_id)
+
+
+class GameRestartView(views.APIView):
+    def put(self, request, game_id)->Response:
+        if not game_id:
+            raise Http404()
+        return PokerEngine.restart_game(game_id)
 
 
 class TestView(views.APIView):

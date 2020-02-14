@@ -17,13 +17,14 @@ from django.conf.urls import url
 from poker_api.views import *
 
 urlpatterns = [
-    url(r'test', TestView.as_view(), name='test_list_view'),
-    url(r'user/(?P<user_id>\d+)/off', UserOffView.as_view(), name='user_off_view'),
-    url(r'user/(?P<user_id>\d+)', UserView.as_view(), name='user_view'),
-    url(r'(?P<game_id>\d+)/start_game', GameStartView.as_view(), name='game_view'),
-    url(r'(?P<game_id>\d+)/(?P<user_id>\d*)/action', UserActionView.as_view(), name='user_in_game_view'),
-    url(r'(?P<game_id>\d+)/(?P<user_id>\d*)', UserInGameView.as_view(), name='user_in_game_view'),
-    url(r'(?P<game_id>\d+)', GameView.as_view(), name='game_view'),
-    url(r'user', UserListView.as_view(), name='user_list_view'),
-    url(r'', GameListView.as_view(), name='game_list_view'),
+    url(r'test', TestView.as_view()),
+    url(r'user/(?P<user_id>\d+)/off', UserOffView.as_view()),
+    url(r'user/(?P<user_id>\d+)', UserView.as_view()),
+    url(r'(?P<game_id>\d+)/start_game', GameStartView.as_view()),
+    url(r'(?P<game_id>\d+)/restart_game', GameRestartView.as_view()),
+    url(r'(?P<game_id>\d+)/(?P<user_id>\d*)/action', UserActionView.as_view()),
+    url(r'(?P<game_id>\d+)/(?P<user_id>\d*)', UserInGameView.as_view()),
+    url(r'(?P<game_id>\d+)', GameView.as_view()),
+    url(r'user', UserListView.as_view()),
+    url(r'', GameListView.as_view()),
 ]

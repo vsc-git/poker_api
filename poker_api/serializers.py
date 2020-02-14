@@ -39,7 +39,7 @@ class CardInPackSerializer(serializers.ModelSerializer):
 
 
 class BoardSerializer(serializers.ModelSerializer):
-    card_list = CardInPackSerializer(many=True)
+    card_list = CardSerializer(many=True)
 
     class Meta:
         model = Board
@@ -57,7 +57,7 @@ class UserInGamePublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserInGame
-        fields = ('id', 'user', 'game', 'bet', 'in_game', 'is_dealer', 'is_turn')
+        fields = ('id', 'user', 'game', 'bet', 'in_game', 'is_dealer', 'is_turn', 'has_speak')
 
 
 class PokerGamePublicSerializer(serializers.ModelSerializer):
@@ -80,7 +80,7 @@ class UserInGamePrivateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserInGame
-        fields = ('id', 'user', 'hand', 'bet', 'in_game', 'is_dealer', 'is_turn', 'game')
+        fields = ('id', 'user', 'hand', 'bet', 'in_game', 'is_dealer', 'is_turn', 'has_speak', 'game')
 
 
 class PokerGameLightSerializer(serializers.ModelSerializer):
