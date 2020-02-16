@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import views
 
 from .poker_engine import PokerEngine
+from .score import ScoreCalculator
 from .serializers import *
 from .utils import *
 
@@ -92,6 +93,8 @@ class UserInGameView(views.APIView):
             raise Http404()
         poker_game: PokerGame = get_object_or_404(PokerGame.objects.filter(id=int(game_id)))
         user_in_game = get_object_or_404(poker_game.useringame_set.filter(user__id=user_id))
+        user_in_game.score = ScoreCalculator(user_in_game.hand.card_list.only(), user_in_game.hand.card_list.only()).get_score()
+        user_in_game.save()
         return Response(UserInGamePrivateSerializer(user_in_game).data)
 
     def put(self, request, game_id, user_id) -> Response:
@@ -139,7 +142,12 @@ class UserActionView(views.APIView):
             return send_detail_response(message=f"Invalid parameter 'action'. Values : {PokerUserActionType.values()}", status=400)
         if action == PokerUserActionType.RAISE and bet <= 0:
             return send_detail_response(message=f"Invalid parameter 'bet' with RAISE, must be positive", status=400)
-        return PokerEngine.process_user_action(game_id, user_id, action, bet)
+
+        poker_game: PokerGame = get_object_or_404(PokerGame.objects.filter(id=game_id))
+        user_in_game: UserInGame = get_object_or_404(poker_game.useringame_set.filter(id=user_id))
+        if user_in_game.user.bot:
+            return send_detail_response(message=f"You can't play for a bot", status=403)
+        return PokerEngine.process_user_action(poker_game, user_in_game, action, bet)
 
 
 class GameStartView(views.APIView):

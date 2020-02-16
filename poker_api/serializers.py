@@ -49,16 +49,32 @@ class BoardSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'name', 'money', 'online')
+        fields = ('id', 'name', 'bot', 'money', 'online')
 
+
+
+class ScoreSerializer(serializers.ModelSerializer):
+    trick = HandSerializer(many=True)
+    other = CardSerializer(many=True)
+    value = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Score
+        fields = ('value', 'trick', 'other')
+
+    def get_value(self, obj):
+        return list(filter(lambda dict : dict[0]==obj.value, Score.POKER_SCORE))[0][1]
 
 class UserInGamePublicSerializer(serializers.ModelSerializer):
     user = UserSerializer()
+    score = serializers.SerializerMethodField()
 
     class Meta:
         model = UserInGame
-        fields = ('id', 'user', 'game', 'bet', 'in_game', 'is_dealer', 'is_turn', 'has_speak')
+        fields = ('id', 'user', 'game', 'bet', 'in_game', 'is_dealer', 'is_turn', 'has_speak', 'score')
 
+    def get_score(self, obj):
+        return str(obj.score)
 
 class PokerGamePublicSerializer(serializers.ModelSerializer):
     board = BoardSerializer()

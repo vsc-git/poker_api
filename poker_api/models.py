@@ -1,5 +1,6 @@
 import random
 from enum import IntEnum
+from typing import List
 
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -112,7 +113,7 @@ class Hand(models.Model):
 class Pack(models.Model):
     card_list = models.ManyToManyField(Card, through='CardInPack')
 
-    def pick_card(self)->Card:
+    def pick_card(self) -> Card:
         card_list = self.cardinpack_set.filter(is_draw=False)
         if not len(card_list):
             raise Exception("No more card")
@@ -201,7 +202,6 @@ class PokerGame(models.Model):
     def create(cls, id):
         obj = cls(id=id, pack=Pack.create(), board=Board.create(), blind=10)
         obj.save()
-        print(obj.user_list.count())
         return obj
 
 
@@ -214,6 +214,7 @@ class UserInGame(models.Model):
     is_dealer = models.BooleanField(default=False)
     is_turn = models.BooleanField(default=False)
     has_speak = models.BooleanField(default=False)
+    score = models.OneToOneField('Score', on_delete=models.PROTECT, null=True, blank=True)
 
     @classmethod
     def create(cls, user: User, game: PokerGame):
@@ -222,7 +223,7 @@ class UserInGame(models.Model):
         return obj
 
 
-class ScoreType:
+class Score(models.Model):
     FOLD = 0
     HIGH_CARD = 1
     PAIR = 2
@@ -247,9 +248,214 @@ class ScoreType:
         (STRAIGHT_FLUSH, 'STRAIGHT_FLUSH'),
         (ROYAL_FLUSH, 'ROYAL_FLUSH')
     ]
+    value = models.IntegerField(choices=POKER_SCORE)
+    # pack of card liked to the hand list of list of card
+    trick = models.ManyToManyField(Hand, blank=True)
+    # other cards no evaluate
+    other = models.ManyToManyField(Card, blank=True)
 
-    # value = models.IntegerField(choices=POKER_SCORE)
-    # trick_card = models.ManyToManyField(Card, blank=True)
-    # other_card = models.ManyToManyField(Card, blank=True)
+    @classmethod
+    def create(cls, value: int, trick: List[List[Card]], other: List[Card]):
+        obj = cls(value=value)
+        obj.save()
+        for card_list in trick:
+            if len(card_list) > 0:
+                hand = Hand.create()
+                for card in card_list:
+                    hand.card_list.add(card)
+                obj.trick.add(hand)
+        card_list = sorted(other, key=lambda ca: ca.value, reverse=True)
+        for card in card_list:
+            obj.other.add(card)
+        obj.save()
+        return obj
 
-# TODO keep score and history
+    def compare_to(self, other_score) -> int:
+        if self.value is other_score.hand:
+            return self.compare_trick(other_score)
+        return self.value - other_score.hand
+
+    def compare_trick(self, other_score) -> int:
+        if self.value is Score.FOLD:
+            return 0
+        elif self.value is Score.ROYAL_FLUSH:
+            return 0
+        elif self.value is Score.STRAIGHT_FLUSH:
+            return self.compare_straight_flush(other_score)
+        elif self.value is Score.FOUR_OF_A_KIND:
+            return self.compare_four_of_a_kind(other_score)
+        elif self.value is Score.FULL_HOUSE:
+            return self.compare_full_house(other_score)
+        elif self.value is Score.FLUSH:
+            return self.compare_flush(other_score)
+        elif self.value is Score.STRAIGHT:
+            return self.compare_straight(other_score)
+        elif self.value is Score.THREE_OF_A_KIND:
+            return self.compare_three_of_a_kind(other_score)
+        elif self.value is Score.TWO_PAIRS:
+            return self.compare_two_pair(other_score)
+        elif self.value is Score.PAIR:
+            return self.compare_pair(other_score)
+        else:
+            return self.compare_other(other_score)
+
+    def compare_other(self, other_score) -> int:
+        for i in range(0, len(self.other)):
+            c1 = self.other[i]
+            c2 = other_score.other[i]
+            if c1.value == c2.value:
+                continue
+            elif c1.value > c2.value:
+                return 1
+            else:
+                return -1
+        return 0
+
+    @staticmethod
+    def compare_card(c1: Card, c2: Card) -> int:
+        if c1.value == c2.value:
+            return 0
+        elif c1.value > c2.value:
+            return 1
+        else:
+            return -1
+
+    def compare_straight_flush(self, other_score) -> int:
+        card1 = self.get_high_card_for_straight()
+        card2 = other_score.get_high_card_for_straight()
+        return Score.compare_card(card1, card2)
+
+    def compare_four_of_a_kind(self, other_score) -> int:
+        return Score.compare_card(self.trick.only()[0].card_list.only()[0], other_score.trick[0][0])
+
+    def compare_full_house(self, other_score) -> int:
+        r1 = Score.compare_card(self.trick.only()[0].card_list.only()[0], other_score.trick[0][0])
+        if r1 == 0:
+            return Score.compare_card(self.trick.only()[0].card_list.only()[0], other_score.trick[0][0])
+        else:
+            return r1
+
+    def compare_flush(self, other_score) -> int:
+        cards1 = sorted(self.trick.only()[0].card_list.only(), key=lambda card: card.value, reverse=True)
+        cards2 = sorted(other_score.trick[0], key=lambda card: card.value, reverse=True)
+        for i in range(0, len(cards1)):
+            c1 = cards1[i]
+            c2 = cards2[i]
+            if c1.value == c2.value:
+                continue
+            elif c1.value > c2.value:
+                return 1
+            else:
+                return -1
+        return 0
+
+    def compare_straight(self, other_score) -> int:
+        card1 = self.get_high_card_for_straight()
+        card2 = other_score.get_high_card_for_straight()
+        return Score.compare_card(card1, card2)
+
+    def compare_three_of_a_kind(self, other_score) -> int:
+        r1 = Score.compare_card(self.trick.only()[0].card_list.only()[0], other_score.trick[0][0])
+        if r1 == 0:
+            return self.compare_other(other_score)
+        else:
+            return r1
+
+    def compare_two_pair(self, other_score) -> int:
+        if self.trick.only()[0].card_list.only()[0].value > self.trick.only()[1].card_list.only()[0].value:
+            pair1a = self.trick.only()[0].card_list.only()
+            pair2a = self.trick.only()[1].card_list.only()
+        else:
+            pair1a = self.trick.only()[1].card_list.only()
+            pair2a = self.trick.only()[0].card_list.only()
+        if other_score.trick[0][0].value > other_score.trick[1][0].value:
+            pair1b = other_score.trick[0]
+            pair2b = other_score.trick[1]
+        else:
+            pair1b = other_score.trick[1]
+            pair2b = other_score.trick[0]
+        r1 = Score.compare_card(pair1a[0], pair1b[0])
+        if r1 == 0:
+            r2 = Score.compare_card(pair2a[0], pair2b[0])
+            if r2 == 0:
+                return self.compare_other(other_score)
+            else:
+                return r2
+        else:
+            return r1
+
+    def compare_pair(self, other_score) -> int:
+        r1 = Score.compare_card(self.trick.only()[0].card_list.only()[0], other_score.trick[0][0])
+        if r1 == 0:
+            return self.compare_other(other_score)
+        else:
+            return r1
+
+    def get_high_card_for_straight(self) -> Card:
+        sorted_cards = sorted(self.trick.only()[0].card_list.only(), key=lambda card: card.value, reverse=True)
+        if sorted_cards[0].value is Card.ACE:
+            if sorted_cards[1].value is Card.KING:
+                return sorted_cards[0]
+            else:
+                return sorted_cards[1]
+        return sorted_cards[0]
+
+    def __str__(self):
+        if self.value is Score.ROYAL_FLUSH:
+            return "Royal flush of " + list(filter(lambda dict: dict[0] == self.trick.only()[0].card_list.only()[0].color, Card.POKER_CARD_COLOR))[0][1]
+        elif self.value is Score.STRAIGHT_FLUSH:
+            high_card = self.get_high_card_for_straight()
+            return "Straight flush at " + str(high_card)
+        elif self.value is Score.FOUR_OF_A_KIND:
+            return "Four of a kind of " + list(filter(lambda dict: dict[0] == self.trick.only()[0].card_list.only()[0].value, Card.POKER_CARD_VALUE))[0][1]
+        elif self.value is Score.FULL_HOUSE:
+            return "Full house of " + list(filter(lambda dict: dict[0] == self.trick.only()[0].card_list.only()[0].value, Card.POKER_CARD_VALUE))[0][1] + " by " + \
+                   list(filter(lambda dict: dict[0] == self.trick.only()[1].card_list.only()[0].value, Card.POKER_CARD_VALUE))[0][1]
+        elif self.value is Score.FLUSH:
+            cards = sorted(self.trick.only()[0].card_list.only(), key=lambda card: card.value, reverse=True)
+            return "Flush at " + str(cards[0])
+        elif self.value is Score.STRAIGHT:
+            high_card = self.get_high_card_for_straight()
+            return "Straight at " + list(filter(lambda dict: dict[0] == high_card.value, Card.POKER_CARD_VALUE))[0][1]
+        elif self.value is Score.THREE_OF_A_KIND:
+            return "Three of a kind of " + list(filter(lambda dict: dict[0] == self.trick.only()[0].card_list.only()[0].value, Card.POKER_CARD_VALUE))[0][1]
+        elif self.value is Score.TWO_PAIRS:
+            return "Two pairs of " + list(filter(lambda dict: dict[0] == self.trick.only()[0].card_list.only()[0].value, Card.POKER_CARD_VALUE))[0][1] + " and " + \
+                   list(filter(lambda dict: dict[0] == self.trick.only()[1].card_list.only()[0].value, Card.POKER_CARD_VALUE))[0][1]
+        elif self.value is Score.PAIR:
+            return "Pair of " + list(filter(lambda dict: dict[0] == self.trick.only()[0].card_list.only()[0].value, Card.POKER_CARD_VALUE))[0][1]
+        elif self.value is Score.FOLD:
+            return "Fold"
+        else:
+            cards = sorted(self.other.only(), key=lambda card: card.value, reverse=True)
+            return "Highcard of " + list(filter(lambda dict: dict[0] == cards[0].value, Card.POKER_CARD_VALUE))[0][1]
+
+    def __lt__(self, other_score):
+        res = self.compare_to(other_score)
+        if res < 0:
+            return True
+        return False
+
+    def __le__(self, other_score):
+        res = self.compare_to(other_score)
+        if res <= 0:
+            return True
+        return False
+
+    def __gt__(self, other_score):
+        res = self.compare_to(other_score)
+        if res > 0:
+            return True
+        return False
+
+    def __ge__(self, other_score):
+        res = self.compare_to(other_score)
+        if res >= 0:
+            return True
+        return False
+
+    def __eq__(self, other_score):
+        res = self.compare_to(other_score)
+        if res == 0:
+            return True
+        return False
